@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deepseek Proxy Chat</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: #111827;
+      color: #e5e7eb;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+    }
+    .chat {
+      width: min(900px, 95vw);
+      height: min(760px, 92vh);
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 16px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+      box-shadow: 0 15px 40px rgba(0,0,0,.35);
+    }
+    .chat__header {
+      padding: 16px 18px;
+      border-bottom: 1px solid #374151;
+      font-weight: 700;
+    }
+    .chat__messages {
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .message {
+      max-width: 80%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .message--user {
+      margin-left: auto;
+      background: #2563eb;
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .message--assistant {
+      background: #374151;
+      border-bottom-left-radius: 4px;
+    }
+    .chat__composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 14px;
+      border-top: 1px solid #374151;
+      background: #111827;
+    }
+    textarea {
+      resize: none;
+      min-height: 52px;
+      max-height: 150px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #4b5563;
+      background: #1f2937;
+      color: #e5e7eb;
+      outline: none;
+      font: inherit;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      background: #10b981;
+      color: #052e24;
+      font-weight: 700;
+      padding: 0 20px;
+      cursor: pointer;
+      min-width: 130px;
+    }
+    button:disabled {
+      opacity: .5;
+      cursor: wait;
+    }
+    .status {
+      font-size: 12px;
+      color: #9ca3af;
+      margin: 0 16px 10px;
+      min-height: 16px;
+    }
+  </style>
+</head>
+<body>
+  <main class="chat">
+    <header class="chat__header">Мини-чат через ваш Ktor сервер → Deepseek API</header>
+    <section class="chat__messages" id="messages"></section>
+    <p class="status" id="status"></p>
+    <form class="chat__composer" id="composer">
+      <textarea id="prompt" placeholder="Введите сообщение… (Enter — отправить, Shift+Enter — новая строка)"></textarea>
+      <button id="send" type="submit">Отправить</button>
+    </form>
+  </main>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const statusEl = document.getElementById('status');
+    const composerEl = document.getElementById('composer');
+    const promptEl = document.getElementById('prompt');
+    const sendBtn = document.getElementById('send');
+
+    const history = [];
+
+    function appendMessage(role, content) {
+      const item = document.createElement('article');
+      item.className = `message message--${role}`;
+      item.textContent = content;
+      messagesEl.appendChild(item);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function setBusy(busy, statusText = '') {
+      sendBtn.disabled = busy;
+      promptEl.disabled = busy;
+      statusEl.textContent = statusText;
+    }
+
+    composerEl.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const prompt = promptEl.value.trim();
+      if (!prompt) return;
+
+      appendMessage('user', prompt);
+      history.push({ role: 'user', content: prompt });
+      promptEl.value = '';
+
+      setBusy(true, 'Отправка запроса в Deepseek через сервер...');
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history })
+        });
+
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body.error || `HTTP ${response.status}`);
+        }
+
+        const reply = (body.reply || '').trim() || 'Пустой ответ от модели.';
+        history.push({ role: 'assistant', content: reply });
+        appendMessage('assistant', reply);
+        setBusy(false, 'Готово');
+      } catch (error) {
+        setBusy(false, `Ошибка: ${error.message}`);
+      }
+    });
+
+    promptEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        composerEl.requestSubmit();
+      }
+    });
+
+    appendMessage('assistant', 'Привет! Я отвечаю через ваш локальный сервер-прокси.');
+  </script>
+</body>
+</html>
