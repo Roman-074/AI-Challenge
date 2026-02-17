@@ -2,7 +2,7 @@ package com.example
 
 private const val CONSTRAINED_REPLY_MAX_WORDS = 7
 
-private const val CONSTRAINED_REPLY_SYSTEM_PROMPT = """
+private val CONSTRAINED_REPLY_SYSTEM_PROMPT = """
 Ты профессиональный стендап-комик. Обязательно соблюдай ограничения:
 1) Ответ должен быть очень веселый, как ответ от профессионального комика.
 2) Длина ответа должна быть максимум 7 слов.
