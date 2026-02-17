@@ -35,11 +35,17 @@ fun Application.configureRouting() {
             val request = call.receive<ChatProxyRequest>()
             val deepseekClient = DeepseekClient(apiKey = apiKey)
 
-            val messages = request.messages?.takeIf { it.isNotEmpty() }
+            val rawMessages = request.messages?.takeIf { it.isNotEmpty() }
                 ?.map { ChatMessage(role = it.role, content = it.content) }
                 ?: listOf(ChatMessage(role = "user", content = request.prompt.orEmpty()))
 
-            val reply = try {
+            val messages = if (request.constraintsEnabled) {
+                prependConstraintSystemMessage(rawMessages)
+            } else {
+                rawMessages
+            }
+
+            val rawReply = try {
                 deepseekClient.chat(messages)
             } catch (error: IllegalArgumentException) {
                 call.respond(HttpStatusCode.BadRequest, mapOf("error" to error.message.orEmpty()))
@@ -47,6 +53,12 @@ fun Application.configureRouting() {
             } catch (error: Exception) {
                 call.respond(HttpStatusCode.BadGateway, mapOf("error" to error.message.orEmpty()))
                 return@post
+            }
+
+            val reply = if (request.constraintsEnabled) {
+                applyConstrainedReplyRules(rawReply)
+            } else {
+                rawReply
             }
 
             call.respond(ChatProxyResponse(reply = reply))
@@ -57,7 +69,8 @@ fun Application.configureRouting() {
 @Serializable
 data class ChatProxyRequest(
     val prompt: String? = null,
-    val messages: List<ChatTurn>? = null
+    val messages: List<ChatTurn>? = null,
+    val constraintsEnabled: Boolean = false
 )
 
 @Serializable

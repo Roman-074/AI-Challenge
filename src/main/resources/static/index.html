@@ -64,6 +64,19 @@
       border-top: 1px solid #374151;
       background: #111827;
     }
+    .constraints-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 16px 10px;
+      font-size: 13px;
+      color: #d1d5db;
+    }
+    .constraints-toggle input {
+      width: 16px;
+      height: 16px;
+      accent-color: #10b981;
+    }
     textarea {
       resize: none;
       min-height: 52px;
@@ -102,6 +115,10 @@
   <main class="chat">
     <header class="chat__header">Мини-чат через ваш Ktor сервер → Deepseek API</header>
     <section class="chat__messages" id="messages"></section>
+    <label class="constraints-toggle" for="constraintsEnabled">
+      <input type="checkbox" id="constraintsEnabled" />
+      Включить весёлые ограничения ответа (до 7 слов + стоп на слово с "ь")
+    </label>
     <p class="status" id="status"></p>
     <form class="chat__composer" id="composer">
       <textarea id="prompt" placeholder="Введите сообщение… (Enter — отправить, Shift+Enter — новая строка)"></textarea>
@@ -115,6 +132,7 @@
     const composerEl = document.getElementById('composer');
     const promptEl = document.getElementById('prompt');
     const sendBtn = document.getElementById('send');
+    const constraintsEnabledEl = document.getElementById('constraintsEnabled');
 
     const history = [];
 
@@ -129,6 +147,7 @@
     function setBusy(busy, statusText = '') {
       sendBtn.disabled = busy;
       promptEl.disabled = busy;
+      constraintsEnabledEl.disabled = busy;
       statusEl.textContent = statusText;
     }
 
@@ -148,7 +167,10 @@
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: history })
+          body: JSON.stringify({
+            messages: history,
+            constraintsEnabled: constraintsEnabledEl.checked
+          })
         });
 
         const body = await response.json();
