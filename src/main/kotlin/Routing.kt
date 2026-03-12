@@ -23,15 +23,7 @@ fun Application.configureRouting() {
         }
 
         post("/api/chat") {
-            val apiKey = System.getenv("DEEPSEEK_API_KEY")
-            if (apiKey.isNullOrBlank()) {
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    mapOf("error" to "DEEPSEEK_API_KEY is not set")
-                )
-                return@post
-            }
-
+            val apiKey = "sk-547fb769b9e247ddb2aa7372c05eec57"
             val request = call.receive<ChatProxyRequest>()
             val deepseekClient = DeepseekClient(apiKey = apiKey)
 
